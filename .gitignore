@@ -1,0 +1,6 @@
+build_win/patty_cake/.vs/*
+build_win/patty_cake/*/Debug/*
+build_win/patty_cake/*/Release/*
+build_win/test/.vs/*
+build_win/test/*/Debug/*
+build_win/test/*/Release/*
