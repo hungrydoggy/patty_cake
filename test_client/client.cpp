@@ -1,4 +1,4 @@
-#include "test.h"
+#include "client.h"
 
 #include <iostream>
 #include <string>
@@ -22,10 +22,16 @@ using namespace patty_cake;
 shared_ptr<PattyCake> cake;
 
 volatile bool is_listening = true;
+volatile bool is_running = true;
 static void _listen () {
     while (is_listening) {
-        auto piece = cake->receive();
 
+        auto piece = cake->receive();
+        if (piece == 0) {
+            cout << "error: piece is null" << endl;
+            is_running = false;
+            return;
+        }
 
         // FIXME test
         piece->data.resize(piece->data.size() + 1);
@@ -36,23 +42,41 @@ static void _listen () {
             << (int)piece->from.sin_addr.S_un.S_un_b.s_b4 << ":"
             << (int)piece->from.sin_port << " - "
             << piece->data.data() << endl;
-
-
-        // echo
-        cake->send(piece->from, piece->data);
     }
 }
 
 int main () {
 
-	cout << "test" << endl;
+	cout << "test client" << endl;
 
     cake = make_shared<PattyCake>();
     cake->initSocket();
-    cake->bindSocket(9854);
+
+    string str;
+    vector<char> buffer;
+    str = "connect to server";
+    buffer.resize(str.length() + 1);
+    memcpy(buffer.data(), str.data(), str.length());
+    buffer[buffer.size() - 1] = 0;
+    cake->send("127.0.0.1", 9854, buffer);
 
     thread listening_thread(_listen);
 
+    while (is_running) {
+        getline(cin, str);
+        if (str == "exit")
+            break;
+
+        cout << "sending: " << str << endl;
+
+        buffer.resize(str.length() + 1);
+        memcpy(buffer.data(), str.data(), str.length());
+        buffer[buffer.size() - 1] = 0;
+        cake->send("127.0.0.1", 9854, buffer);
+
+    }
+
+    is_listening = false;
     listening_thread.join();
 
 	return 0;

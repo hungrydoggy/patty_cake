@@ -96,6 +96,16 @@ bool PattyCake::send (const std::string &ip_address, int port, const vector<char
     return true;
 }
 
+bool PattyCake::send (const SOCKADDR_IN &address, const std::vector<char> &data) {
+    int flags = 0;
+    if (sendto(socket_, data.data(), data.size(), flags, (SOCKADDR*)&address, sizeof(address)) == SOCKET_ERROR) {
+        cout << "sendto failed: " << WSAGetLastError() << endl;
+        return false;
+    }
+
+    return true;
+}
+
 shared_ptr<PattyCakePiece> PattyCake::receive () {
     if (isSocketReady() == false) {
         cout << "socket must be ready before receive." << endl;
@@ -107,27 +117,20 @@ shared_ptr<PattyCakePiece> PattyCake::receive () {
 
     // receive
     int flags = 0;
-    SOCKADDR_IN from;
-    int from_size = sizeof(from);
+    int from_size = sizeof(piece->from);
     int bytes_received = recvfrom(
             socket_,
             piece->data.data(),
             piece_size_,
             flags,
-            (SOCKADDR*)&from,
+            (SOCKADDR*)&piece->from,
             &from_size);
 
     if (bytes_received == SOCKET_ERROR) {
-        cout << "recvfrom returned SOCKET_ERROR, WSAGetLastError() " << WSAGetLastError() << endl;
+        cout << "recvfrom returned SOCKET_ERROR, " << WSAGetLastError() << endl;
         return 0;
     }
     piece->data.resize(bytes_received);
-
-    piece->b1   = from.sin_addr.S_un.S_un_b.s_b1;
-    piece->b2   = from.sin_addr.S_un.S_un_b.s_b2;
-    piece->b3   = from.sin_addr.S_un.S_un_b.s_b3;
-    piece->b4   = from.sin_addr.S_un.S_un_b.s_b4;
-    piece->port = from.sin_port;
 
     return piece;
 }

@@ -26,6 +26,7 @@ public:
     bool bindSocket (int port);
     std::shared_ptr<PattyCakePiece> receive ();
     bool send (const std::string &ip_address, int port, const std::vector<char> &data);
+    bool send (const SOCKADDR_IN &address, const std::vector<char> &data);
     bool isSocketReady ();
 
 private:
@@ -45,8 +46,7 @@ private:
 
 class PattyCakePiece {
 public:
-    unsigned char b1, b2, b3, b4;
-    int port;
+    SOCKADDR_IN from;
     std::vector<char> data;
 
 private:

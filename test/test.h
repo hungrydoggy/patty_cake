@@ -1,5 +1,5 @@
-#ifndef PATTY_CAKE_TEST_H_
-#define PATTY_CAKE_TEST_H_
+#ifndef PATTY_CAKE_TEST_CLIENT_H_
+#define PATTY_CAKE_TEST_CLIENT_H_
 
 
 
