@@ -43,8 +43,7 @@ static void _listen () {
     }
 }
 
-int main () {
-
+void main () {
 	cout << "test" << endl;
 
     cake = make_shared<PattyCake>();
@@ -55,5 +54,4 @@ int main () {
 
     listening_thread.join();
 
-	return 0;
 }
