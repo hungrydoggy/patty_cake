@@ -11,7 +11,6 @@
 #endif
 
 
-
 namespace patty_cake {
 
 class PattyCakePiece;
@@ -50,6 +49,22 @@ public:
     std::vector<char> data;
 
 private:
+};
+
+class PattyCakePieceSlicer {
+public:
+    PattyCakePieceSlicer (const std::shared_ptr<PattyCakePiece> &piece);
+
+    template <class T>
+    T slice () {
+        auto cur_idx = idx_;
+        idx_ += sizeof(T);
+        return (*((T*)piece_->data[cur_idx]));
+    }
+
+private:
+    std::shared_ptr<PattyCakePiece> piece_;
+    int idx_;
 };
 
 

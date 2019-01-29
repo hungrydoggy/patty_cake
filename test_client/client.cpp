@@ -45,7 +45,7 @@ static void _listen () {
     }
 }
 
-void main () {
+int main () {
 
 	cout << "test client" << endl;
 
@@ -79,4 +79,5 @@ void main () {
     is_listening = false;
     listening_thread.join();
 
+    return 0;
 }

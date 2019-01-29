@@ -16,8 +16,8 @@ int PattyCake::stt_instance_count_ = 0;
 
 
 PattyCake::PattyCake (int piece_size)
-:socket_(INVALID_SOCKET),
- piece_size_(piece_size) {
+    :socket_(INVALID_SOCKET),
+    piece_size_(piece_size) {
 
     _init();
     ++stt_instance_count_;
@@ -85,7 +85,7 @@ bool PattyCake::send (const std::string &ip_address, int port, const vector<char
     SOCKADDR_IN to_address;
     to_address.sin_family = AF_INET;
     to_address.sin_port = htons(port);
-    InetPton(AF_INET, ip_address.c_str(), &to_address.sin_addr.S_un.S_addr);
+    inet_pton(AF_INET, ip_address.c_str(), &to_address.sin_addr.S_un.S_addr);
 
     int flags = 0;
     if (sendto(socket_, data.data(), data.size(), flags, (SOCKADDR*)&to_address, sizeof(to_address)) == SOCKET_ERROR) {
@@ -119,12 +119,12 @@ shared_ptr<PattyCakePiece> PattyCake::receive () {
     int flags = 0;
     int from_size = sizeof(piece->from);
     int bytes_received = recvfrom(
-            socket_,
-            piece->data.data(),
-            piece_size_,
-            flags,
-            (SOCKADDR*)&piece->from,
-            &from_size);
+        socket_,
+        piece->data.data(),
+        piece_size_,
+        flags,
+        (SOCKADDR*)&piece->from,
+        &from_size);
 
     if (bytes_received == SOCKET_ERROR) {
         cout << "recvfrom returned SOCKET_ERROR, " << WSAGetLastError() << endl;
@@ -142,5 +142,11 @@ shared_ptr<PattyCakePiece> PattyCake::receive () {
 
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// PattyCakePieceSlicer
+PattyCakePieceSlicer::PattyCakePieceSlicer (const shared_ptr<PattyCakePiece> &piece)
+    :idx_(0) {
+    piece_ = piece;
+}
 
 }
