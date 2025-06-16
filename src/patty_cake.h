@@ -1,306 +1,152 @@
-#include "patty_cake.h"
+#ifndef EXTERNAL_PATTY_CAKE_PATTY_CAKE_H_
+#define EXTERNAL_PATTY_CAKE_PATTY_CAKE_H_
 
-#include <fcntl.h>
-#include <iostream>
-
-#if defined(_WINDOWS)
-#elif defined(_LINUX)
-  #include <arpa/inet.h>
-  #include <cstring>
-  #include <errno.h>
-#endif
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
 #if defined(_WINDOWS)
-  #define socklen_t int
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #elif defined(_LINUX)
-  #define closesocket close
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #endif
 
+#include "../util/defines.h"
 
-using std::cout;
-using std::endl;
-using std::make_shared;
-using std::shared_ptr;
-using std::vector;
+
+#if defined(_WINDOWS)
+  #define WOULDBLOCK WSAEWOULDBLOCK
+  #define GET_SOCK_ERR WSAGetLastError()
+  #define ERR_NO WSAGetLastError()
+#elif defined(_LINUX)
+  #define SOCKET    int
+  #define SOCKADDR_IN sockaddr_in
+  #define SOCKADDR  sockaddr
+  #define INVALID_SOCKET -1
+  #define SOCKET_ERROR   -1
+  #define WOULDBLOCK EWOULDBLOCK
+  #define GET_SOCK_ERR strerror(errno)
+  #define ERR_NO errno
+#endif
+
 
 namespace patty_cake {
 
+class PattyCakePiece;
 
-int PattyCake::stt_instance_count_ = 0;
+
+class APPETIZER_API PattyCake {
+public:
+  enum SocketType {
+    TCP,
+    UDP,
+  };
 
 
-PattyCake::PattyCake (int piece_size)
-:socket_(INVALID_SOCKET),
- piece_size_(piece_size),
- is_closed_(false)
-{
-  _init();
-  ++stt_instance_count_;
+  static void makeSockAddrIn (SOCKADDR_IN &output, const std::string &ip_address, int port);
+
+
+  PattyCake (int piece_size = 512);
+  ~PattyCake ();
+
+
+  GETTER(bool, is_closed)
+
+
+  bool isSocketReady ();
+
+  bool initSocket (SocketType sock_type = TCP);
+  bool bindSocket (int port);
+  bool setNonblock ();
+
+
+  // for tcp
+  bool listen (int backlog = 20);
+  std::shared_ptr<PattyCake> accept ();
+  bool connect (const std::string &ip_address, int port);
+
+  std::shared_ptr<PattyCakePiece> receive ();
+  inline bool send (const std::vector<char> &data) {
+    return send((void*)data.data(), data.size());
+  }
+  bool send (void *data, size_t size);
+
+
+  // for udp
+  std::shared_ptr<PattyCakePiece> receiveFrom ();
+  inline bool sendTo (const std::string &ip_address, int port, const std::vector<char> &data) {
+    return sendTo(ip_address, port, (void*)data.data(), data.size());
+  }
+  bool sendTo (const std::string &ip_address, int port, void *data, size_t size);
+  inline bool sendTo (const SOCKADDR_IN &address, const std::vector<char> &data) {
+    return sendTo(address, (void*)data.data(), data.size());
+  }
+  bool sendTo (const SOCKADDR_IN &address, void *data, size_t size);
+
+
+private:
+  SOCKET socket_;
+  int piece_size_;
+  bool is_closed_;
+
+
+  PattyCake (SOCKET socket, int piece_size);
+
+
+  void _init ();
+  void _shutdown ();
+
+
+  static int stt_instance_count_;
+};
+
+
+class APPETIZER_API PattyCakePiece {
+public:
+  SOCKADDR_IN udp_from;
+  std::vector<char> data;
+
+};
+
+class APPETIZER_API PattyCakePieceSlicer {
+public:
+  PattyCakePieceSlicer (const std::shared_ptr<PattyCakePiece> &piece);
+
+  template <class T>
+  T slice () {
+    auto cur_idx = idx_;
+    idx_ += sizeof(T);
+    return *((T*)(piece_->data[cur_idx]));
+  }
+
+private:
+  std::shared_ptr<PattyCakePiece> piece_;
+  int idx_;
+};
+
+
+class APPETIZER_API PattyCakePieceMaker {
+public:
+  template <class T>
+  void append (const T &input_data) {
+    auto sz = sizeof(T);
+    auto idx = data_.size();
+    data_.resize(idx + sz);
+
+    memcpy(&data_[idx], &input_data, sz);
+  }
+
+private:
+  std::vector<char> data_;
+};
+
 }
 
-PattyCake::PattyCake (SOCKET socket, int piece_size) {
-  _init();
-  ++stt_instance_count_;
 
-  socket_   = socket;
-  piece_size_ = piece_size;
-  is_closed_  = false;
-}
-
-PattyCake::~PattyCake () {
-  closesocket(socket_);
-
-  --stt_instance_count_;
-  _shutdown();
-}
-
-bool PattyCake::isSocketReady () {
-  return socket_ != INVALID_SOCKET;
-}
-
-void PattyCake::_shutdown () {
-  if (stt_instance_count_ > 0)
-    return;
-
-#if defined(_WINDOWS)
-  WSACleanup();
 #endif
-}
-
-void PattyCake::_init () {
-  if (stt_instance_count_ > 0)
-    return;
-
-#if defined(_WINDOWS)
-  cout << "winsock startup" << endl;
-  WORD winsock_version = 0x202;
-  WSADATA winsock_data;
-  if (WSAStartup(winsock_version, &winsock_data)) {
-    cout << "WSAStartup failed: " << WSAGetLastError() << endl;
-    return;
-  }
-#endif
-}
-
-bool PattyCake::initSocket (SocketType sock_type/*= TCP*/) {
-  if (isSocketReady() == true)
-    closesocket(socket_);
-
-  // sock
-  switch (sock_type) {
-  case TCP: socket_ = socket(PF_INET, SOCK_STREAM, 0      ); break;
-  case UDP: socket_ = socket(PF_INET, SOCK_DGRAM , IPPROTO_UDP); break;
-  default: cout << "err: unknown socket type - " << sock_type << endl; return false;
-  }
-
-  if (socket_ == INVALID_SOCKET) {
-    cout << "err: socket opening failed - " << GET_SOCK_ERR << endl;
-    return false;
-  }
-
-  is_closed_ = false;
-
-  return true;
-}
-
-bool PattyCake::bindSocket (int port) {
-  SOCKADDR_IN local_address;
-  memset((char*)&local_address, 0, sizeof(local_address));
-  local_address.sin_family = AF_INET;
-  local_address.sin_port = htons(port);
-  local_address.sin_addr.s_addr = htonl(INADDR_ANY);
-  
-  if (bind(socket_, (SOCKADDR*)&local_address, sizeof(local_address)) == SOCKET_ERROR) {
-    cout << "err: socket binding failed - " << GET_SOCK_ERR << endl;
-    return false;
-  }
-
-  return true;
-}
-
-bool PattyCake::setNonblock () {
-  // set nonblock mode
-#if defined(_WINDOWS)
-  unsigned long flag=1;
-  if (ioctlsocket(socket_, FIONBIO, &flag) != 0) {
-#else
-  if (fcntl(socket_, F_SETFL, fcntl(socket_, F_GETFL) | O_NONBLOCK) < 0) {
-#endif
-    cout << "err: cannot set nonblock mode - " << GET_SOCK_ERR << endl;
-    return false;
-  }
-
-  return true;
-}
-
-bool PattyCake::listen (int backlog/*= 20*/) {
-  if (isSocketReady() == false) {
-    cout << "err: socket must be ready before listen." << endl;
-    return false;
-  }
-
-  if (::listen(socket_, backlog) == -1) {
-    cout << "err: listen failed - " << GET_SOCK_ERR << endl;
-    return false;
-  }
-  return true;
-}
-
-shared_ptr<PattyCake> PattyCake::accept () {
-  if (isSocketReady() == false) {
-    cout << "err: socket must be ready before accept." << endl;
-    return null;
-  }
-  
-  SOCKADDR_IN client_addr;
-  socklen_t client_addr_len = sizeof(client_addr);
-  auto new_sock = ::accept(socket_, (SOCKADDR*)&client_addr, &client_addr_len);
-  if (new_sock == SOCKET_ERROR) {
-    cout << "err: accept failed - " << GET_SOCK_ERR << endl;
-    return null;
-  }
-
-  return shared_ptr<PattyCake>(new PattyCake(new_sock, piece_size_));
-}
-
-bool PattyCake::connect (const std::string &ip_address, int port) {
-  if (isSocketReady() == false) {
-    cout << "err: socket must be ready before connect." << endl;
-    return false;
-  }
-
-  SOCKADDR_IN server_addr;
-  makeSockAddrIn(server_addr, ip_address, port);
-
-  if (::connect(socket_, (SOCKADDR*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR) {
-    cout << "err: connect failed - " << GET_SOCK_ERR << endl;
-    return false;
-  } 
-
-  return true;
-}
-
-bool PattyCake::send (void *data, size_t size) {
-  if (isSocketReady() == false) {
-    cout << "err: socket must be ready before send." << endl;
-    return false;
-  }
-
-  auto n = ::send(socket_, (const char*)data, size, 0);
-  if (n < 0) {
-    cout << "err: send failed - " << GET_SOCK_ERR << endl;
-    return false;
-  }
-
-  return true;
-}
-
-std::shared_ptr<PattyCakePiece> PattyCake::receive () {
-  if (isSocketReady() == false) {
-    cout << "err: socket must be ready before receive." << endl;
-    return 0;
-  }
-
-  auto piece = make_shared<PattyCakePiece>();
-  piece->data.resize(piece_size_);
-
-  // receive
-  int bytes_received = ::recv(socket_, piece->data.data(), piece_size_, 0);
-
-  if (bytes_received == 0) {
-    is_closed_ = true;
-    return 0;
-  }else if (bytes_received == SOCKET_ERROR) {
-    switch (ERR_NO) {
-      case WOULDBLOCK: return 0;
-#ifdef _WINDOWS
-      case WSAECONNRESET:
-        is_closed_ = true;
-        return 0;
-#endif
-    }
-    cout << "err: receive failed - " << GET_SOCK_ERR << endl;
-    return 0;
-  }
-  piece->data.resize(bytes_received);
-
-  return piece;
-}
-
-void PattyCake::makeSockAddrIn (SOCKADDR_IN &output, const std::string &ip_address, int port) {
-  memset((char*)&output, 0, sizeof(output));
-  output.sin_family = AF_INET;
-  output.sin_port = htons(port);
-#if defined(_WINDOWS)
-  output.sin_addr.s_addr = inet_addr(ip_address.c_str());
-  //inet_pton(AF_INET, ip_address.c_str(), &output.sin_addr.S_un.S_addr);
-#else
-  inet_pton(AF_INET, ip_address.c_str(), &output.sin_addr);
-#endif
-}
-
-bool PattyCake::sendTo (const std::string &ip_address, int port, void *data, size_t size) {
-  SOCKADDR_IN to_address;
-  makeSockAddrIn(to_address, ip_address, port);
-  return sendTo(to_address, data, size);
-}
-
-bool PattyCake::sendTo (const SOCKADDR_IN &address, void *data, size_t size) {
-  if (isSocketReady() == false) {
-    cout << "err: socket must be ready before sendTo." << endl;
-    return false;
-  }
-
-  int flags = 0;
-  if (::sendto(socket_, (const char*)data, size, flags, (SOCKADDR*)&address, sizeof(address)) == SOCKET_ERROR) {
-    cout << "err: sendto failed - " << GET_SOCK_ERR << endl;
-    return false;
-  }
-
-  return true;
-}
-
-shared_ptr<PattyCakePiece> PattyCake::receiveFrom () {
-  if (isSocketReady() == false) {
-    cout << "err: socket must be ready before receiveFrom." << endl;
-    return 0;
-  }
-
-  auto piece = make_shared<PattyCakePiece>();
-  piece->data.resize(piece_size_);
-
-  // receive
-  int flags = 0;
-  socklen_t from_size = sizeof(piece->udp_from);
-  int bytes_received = recvfrom(
-      socket_,
-      piece->data.data(),
-      piece_size_,
-      flags,
-      (SOCKADDR*)&piece->udp_from,
-      &from_size);
-
-  if (bytes_received == SOCKET_ERROR) {
-    cout << "err: recvfrom failed - " << GET_SOCK_ERR << endl;
-    return 0;
-  }
-  piece->data.resize(bytes_received);
-
-  return piece;
-}
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// PattyCakePiece
-
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// PattyCakePieceSlicer
-PattyCakePieceSlicer::PattyCakePieceSlicer (const shared_ptr<PattyCakePiece> &piece)
-:idx_(0)
-{
-  piece_ = piece;
-}
-
-}
