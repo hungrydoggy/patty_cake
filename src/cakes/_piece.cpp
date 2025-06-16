@@ -60,7 +60,7 @@ void PattyCakePieceMaker::append (std::string const& input_data) {
 
 
   // append string
-  memcpy(&data_[idx] + sizeof(size_t), input_data.data(), input_data.size());
+  memcpy(&data_[idx + sizeof(size_t)], input_data.data(), input_data.size());
   data_[data_.size()-1] = 0;
 }
 
