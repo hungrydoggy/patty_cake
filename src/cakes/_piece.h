@@ -12,6 +12,7 @@ namespace patty_cake {
 
 
 struct PattyCakePiece {
+  std::string sender_id;
   std::vector<uint8_t> data;
 };
 

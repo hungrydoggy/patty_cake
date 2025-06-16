@@ -1,6 +1,7 @@
 #ifndef PATTY_CAKE_CAKES_BASE_H_
 #define PATTY_CAKE_CAKES_BASE_H_
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
@@ -26,21 +27,35 @@ public: // inner types
     CONNECTING,
     CONNECTED,
     FAILED,
-  };
 
-  struct Config {
-    Type        type;
-    std::string url             = "";
-    bool        ordered         = true;  // WebRTC
-    int         max_retransmits = -1;    // WebRTC. -1 == ∞
+    LISTENING,
   };
 
   using OnMessageFunc = std::function<void(PattyCakePiece const& piece)>;
   using OnStateChangeFunc = std::function<void(State state)>;
 
+  struct ConnectConfig {
+    Type              type;
+    std::string       url             = "";
+    bool              ordered         = true;  // WebRTC
+    int               max_retransmits = -1;    // WebRTC. -1 == ∞
+    OnMessageFunc     on_message_func;
+    OnStateChangeFunc on_state_change_func;
+  };
+
+  struct ListenConfig {
+    Type              type;
+    std::string       host = "0.0.0.0";
+    int               port = 8008;
+    OnMessageFunc     on_message_func;
+    OnStateChangeFunc on_state_change_func;
+  };
+
 
 public: // static methods
-  static std::shared_ptr<PattyCake> connect (Config const& cnf);
+  static std::shared_ptr<PattyCake> connect (ConnectConfig const& cnf);
+
+  static std::shared_ptr<PattyCake> listen (ListenConfig const& cnf);
 
 
 public: // getter/setter

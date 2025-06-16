@@ -7,6 +7,7 @@
 //TODO
 #else
 #include <ixwebsocket/IXWebSocket.h>
+#include <ixwebsocket/IXWebSocketServer.h>
 #endif
 
 
@@ -35,12 +36,32 @@ public: // methods
   void poll () override;
 
 
+private: // inner types
+  struct ClientInfo_ {
+    uint id;
+    std::weak_ptr<ix::ConnectionState> conn_state;
+    ix::WebSocket* socket;
+
+    ClientInfo_ (
+        uint id,
+        std::weak_ptr<ix::ConnectionState> const& conn_state,
+        ix::WebSocket* socket
+    );
+
+    inline bool expired () const { return conn_state.expired(); }
+  };
+
+
 private: // vars
-  ix::WebSocket socket;
+  std::shared_ptr<ix::WebSocket> socket_;
+  std::shared_ptr<ix::WebSocketServer> server_;
+
+  std::unordered_map<uint, std::shared_ptr<ClientInfo_>> client_info_map_;
 
 
 private: // methods
-  WebSocketCake (Config const& cnf);
+  WebSocketCake (ConnectConfig const& cnf);
+  WebSocketCake (ListenConfig const& cnf);
 };
 
 

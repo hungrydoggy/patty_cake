@@ -14,18 +14,17 @@ using std::endl;
 int main (int argc, char** argv) {
 
   auto cake = PattyCake::connect(
-    {
-      .url = "wss://echo.websocket.org",
-    }
-  );
-
-
-  cake->on_message_func(
-      [](PattyCakePiece const& piece) {
-
-        cout << "[on msg]" << std::string(piece.data.begin(), piece.data.end()) << endl;
+      {
+        .type = PattyCake::Type::WEB_SOCKET,
+        .url = "wss://echo.websocket.org",
+        .on_message_func =
+            [](PattyCakePiece const& piece) {
+              cout << "[on msg]" << std::string(piece.data.begin(), piece.data.end()) << endl;
+            },
       }
   );
+
+
 
 
   while (cake->state() != PattyCake::State::CONNECTED) {
