@@ -29,6 +29,7 @@ endif
 # deps
 deps = [
   dependency('ixwebsocket'),
+  dependency('zlib'),
 ]
 
 
