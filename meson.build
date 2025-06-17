@@ -17,6 +17,8 @@ add_global_arguments('-D_THREAD_SAFE', language : 'cpp')
 
 ## inc_dirs
 inc_dirs = [
+  include_directories('external/webrtc/src'),
+  include_directories('external/webrtc/src/out/datachannelonly/gen'),
 ]
 if build_sys == 'windows'
   inc_dirs += [
@@ -30,15 +32,33 @@ endif
 deps = [
   dependency('ixwebsocket'),
   dependency('zlib'),
+
+  declare_dependency(link_args:['../external/webrtc/src/out/datachannelonly/obj/pc/libpeer_connection_thick.a']),
 ]
 
 
 ## cpp_args
-cpp_args = []
+cpp_args = [
+  '-stdlib=libc++',
+  '-lc++abi',
+]
 
 link_args = [
+  '-stdlib=libc++',
+  '-lc++abi',
   '-lpthread',
   '-ldl',
+]
+
+link_with = [
+  #static_library('peer_connection',   ['external/webrtc/src/out/datachannelonly/obj/pc/libpeer_connection_thick.a']),
+  #static_library('api',              ['libapi.a']),
+  #static_library('p2p',              ['libp2p.a']),
+  #static_library('rtc_base',         ['librtc_base.a']),
+  #static_library('rtc_base_approved',['librtc_base_approved.a']),
+  #static_library('usrsctp',          ['libusrsctp.a']),
+  #static_library('absl_synchronization', ['libabsl_synchronization.a']),
+  #static_library('absl_base',        ['libabsl_base.a'])
 ]
 
 
