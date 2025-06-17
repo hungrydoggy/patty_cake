@@ -12,6 +12,7 @@
 namespace patty_cake {
 
 
+struct PattyClientInfo;
 struct PattyCakePiece;
 
 
@@ -31,8 +32,8 @@ public: // inner types
     LISTENING,
   };
 
-  using OnMessageFunc = std::function<void(PattyCakePiece const& piece)>;
-  using OnStateChangeFunc = std::function<void(State state)>;
+  using OnMessageFunc = std::function<void(PattyCake* cake, PattyCakePiece const& piece)>;
+  using OnStateChangeFunc = std::function<void(PattyCake* cake, State state)>;
 
   struct ConnectConfig {
     Type              type;
@@ -46,7 +47,7 @@ public: // inner types
   struct ListenConfig {
     Type              type;
     std::string       host = "0.0.0.0";
-    int               port = 8008;
+    int               port = 9991;
     OnMessageFunc     on_message_func;
     OnStateChangeFunc on_state_change_func;
   };
@@ -67,11 +68,16 @@ public: // getter/setter
 
   inline void on_state_change_func (OnStateChangeFunc f) { on_state_change_func_ = f; }
 
+  inline std::unordered_map<std::string, std::shared_ptr<PattyClientInfo>> const&
+  client_info_map () const { return client_info_map_; }
+
 
 public: // methods
   virtual void disconnect () = 0;
 
   virtual bool send (std::vector<uint8_t> const& data) = 0;
+
+  virtual bool send (std::string const& id, std::vector<uint8_t> const& data) = 0;
 
   virtual void poll () = 0;
 
@@ -87,12 +93,31 @@ protected: // getter/setter
 protected: // methods
   PattyCake ();
 
+  void _addClientInfo (std::shared_ptr<PattyClientInfo> const& info);
+
+  void _removeClientInfo (std::string const& id);
+
+  std::shared_ptr<PattyClientInfo> _findClientInfo (std::string const& id) const;
+
 
 private: // vars
   State state_;
   OnMessageFunc on_message_func_;
   OnStateChangeFunc on_state_change_func_;
+
+  std::unordered_map<std::string, std::shared_ptr<PattyClientInfo>> client_info_map_;
 };
+
+
+
+struct PattyClientInfo {
+  std::string id;
+
+  PattyClientInfo (std::string const& id);
+
+  virtual bool is_alive () const = 0;
+};
+
 
 
 }

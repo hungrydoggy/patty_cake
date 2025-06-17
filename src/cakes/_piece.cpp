@@ -30,20 +30,28 @@ void PattyCakePieceSlicer::slice (std::string& str) {
 
 
 
-template<>
-void PattyCakePieceMaker::append (char const* const& input_data) {
+void PattyCakePieceMaker::clear () {
+  data_.clear();
+}
+
+
+void PattyCakePieceMaker::append (char const* input_data) {
   append(std::string(input_data));
 }
 
 
-template<>
+void PattyCakePieceMaker::append (char* input_data) {
+  append(std::string(input_data));
+}
+
+
 void PattyCakePieceMaker::append (std::string const& input_data) {
 
   // ready
   auto idx = data_.size();
   size_t str_size = input_data.size();
 
-  auto ends_with_null = str_size <= 0 || input_data[str_size-1] != '\0';
+  auto ends_with_null = str_size <= 0 || input_data[str_size-1] == '\0';
   if (ends_with_null == false)
     str_size += 1;
 

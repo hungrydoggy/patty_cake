@@ -54,18 +54,18 @@ public: // methods
     memcpy(&data_[idx], &input_data, sz);
   }
 
+  void append (char const* input_data);
+
+  void append (char* input_data);
+
+  void append (std::string const& input_data);
+
+  void clear ();
+
 
 private: // vars
   std::vector<uint8_t> data_;
 };
-
-
-template<>
-void PattyCakePieceMaker::append (char const* const& input_data);
-
-
-template<>
-void PattyCakePieceMaker::append (std::string const& input_data);
 
 
 

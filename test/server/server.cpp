@@ -18,8 +18,12 @@ int main (int argc, char** argv) {
         .type = PattyCake::Type::WEB_SOCKET,
         .host = "127.0.0.1",
         .on_message_func =
-            [](PattyCakePiece const& piece) {
-              cout << "[on msg]" << std::string(piece.data.begin(), piece.data.end()) << endl;
+            [](PattyCake* cake, PattyCakePiece const& piece) {
+              // broadcast echo
+              for (auto& itr : cake->client_info_map()) {
+                auto& id = itr.first;
+                cake->send(id, piece.data);
+              }
             },
       }
   );
