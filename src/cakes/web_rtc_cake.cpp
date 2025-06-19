@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "./_piece.h"
+
 
 
 namespace patty_cake {
@@ -9,123 +11,53 @@ namespace patty_cake {
 
 using std::cout;
 using std::endl;
-using std::make_shared;
-
-
-
-class PeerConnectionObserver_ : public webrtc::PeerConnectionObserver {
-public:// inner types
-  using OnDataChannelFunc = std::function<void(webrtc::scoped_refptr<webrtc::DataChannelInterface> channel)>;
-
-public: // methods
-  PeerConnectionObserver_ (OnDataChannelFunc on_data_channel_func)
-  :on_data_channel_func_(on_data_channel_func)
-  {
-  }
-
-  void OnDataChannel (webrtc::scoped_refptr<webrtc::DataChannelInterface> channel) override {
-    on_data_channel_func_(channel);
-  }
-
-private: // vars
-  OnDataChannelFunc on_data_channel_func_;
-};
-
-
-class DataChannelObserver_ : public webrtc::DataChannelObserver{
-public: // methods
-  DataChannelObserver_ (
-      webrtc::scoped_refptr<webrtc::DataChannelInterface> dc,
-      PattyCake::OnMessageFunc     on_message_func,
-      PattyCake::OnStateChangeFunc on_state_change_func
-  )
-  :dc_(dc),
-   on_message_func_(on_message_func),
-   on_state_change_func_(on_state_change_func)
-  {
-    dc_->RegisterObserver(this);
-  }
-
-  ~DataChannelObserver_ () {
-    dc_->UnregisterObserver();
-  }
-
-  void OnStateChange () override {
-  }
-
-  void OnMessage (webrtc::DataBuffer const& msg) override {
-  }
-
-private: // vars
-  webrtc::scoped_refptr<webrtc::DataChannelInterface> dc_;
-  PattyCake::OnMessageFunc     on_message_func_;
-  PattyCake::OnStateChangeFunc on_state_change_func_;
-};
 
 
 
 WebRtcCake::WebRtcCake (ConnectConfig const& cnf) {
 
-  // make factory
-  auto network   = webrtc::Thread::CreateWithSocketServer();
-  auto worker    = webrtc::Thread::Create();
-  auto signaling = webrtc::Thread::Create();
-  network  ->Start();
-  worker   ->Start();
-  signaling->Start();
-
-  auto factory =
-      webrtc::CreatePeerConnectionFactory(
-        network.get(), worker.get(), signaling.get(),
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
+  // make peer_connection
+  default_connection_ =
+      std::make_shared<WebRtcConnection>(
+        "",
+        this,
+        WebRtcConnection::Type::CALLER,
+        cnf.on_message_func,
+        cnf.on_state_change_func,
+        cnf.on_local_sdp_func,
+        cnf.on_local_ice_func
       );
 
 
-  // make peer_connection_
-  _createPeerConnection(factory, cnf.on_state_change_func, cnf.on_message_func);
+  // make data_channel
+  default_connection_->createDataChannel(
+      cnf.name,
+      cnf.ordered,
+      cnf.max_retransmits,
+      cnf.on_message_func,
+      cnf.on_state_change_func
+  );
 
 
-  // make data_channel_
-  {
-    webrtc::DataChannelInit init;
-    init.ordered        = cnf.ordered;
-    init.maxRetransmits = cnf.max_retransmits;
-
-    auto result = peer_connection_->CreateDataChannelOrError(cnf.name, &init);
-    if (result.ok() == false) {
-      cout << "[patty_cake Error] cannot create data_channel" << endl;
-      return;
-    }
-    data_channel_ = result.MoveValue();
-
-    data_channel_observer_ =
-        make_shared<DataChannelObserver_>(
-          data_channel_,
-          cnf.on_state_change_func,
-          cnf.on_message_func
-        );
-  }
+  // create SDP offer
+  auto peer_connection = default_connection_->peer_connection();
+  peer_connection->setLocalDescription();
 }
 
 
 WebRtcCake::WebRtcCake (ListenConfig const& cnf) {
-  // make factory
-  auto network   = webrtc::Thread::CreateWithSocketServer();
-  auto worker    = webrtc::Thread::Create();
-  auto signaling = webrtc::Thread::Create();
-  network  ->Start();
-  worker   ->Start();
-  signaling->Start();
 
-  auto factory =
-      webrtc::CreatePeerConnectionFactory(
-        network.get(), worker.get(), signaling.get(),
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
+  // make peer_connection
+  default_connection_ =
+      std::make_shared<WebRtcConnection>(
+        "",
+        this,
+        WebRtcConnection::Type::CALLEE,
+        cnf.on_message_func,
+        cnf.on_state_change_func,
+        cnf.on_local_sdp_func,
+        cnf.on_local_ice_func
       );
-
-
-  // make peer_connection_
-  _createPeerConnection(factory, cnf.on_state_change_func, cnf.on_message_func);
 }
 
 
@@ -140,25 +72,41 @@ PattyCake::Type WebRtcCake::type () const {
 
 
 void WebRtcCake::disconnect () {
-  if (data_channel_)
-    data_channel_->UnregisterObserver();
+  default_connection_ = nullptr;
+}
 
-  if (peer_connection_)
-    peer_connection_->Close();
+
+static bool __send (std::shared_ptr<WebRtcConnection> const& connection, std::vector<uint8_t> const& data) {
+  if (connection == nullptr)
+    return false;
+
+  auto data_channel = connection->data_channel();
+  if (data_channel == nullptr)
+    return false;
+
+  return data_channel->send((std::byte const*)data.data(), data.size());
 }
 
 
 bool WebRtcCake::send (std::vector<uint8_t> const& data) {
-  if (data_channel_ == nullptr)
-    return false;
-
-  return data_channel_->Send(webrtc::DataBuffer(webrtc::CopyOnWriteBuffer(data.data(), data.size()), true));
+  return __send(default_connection_, data);
 }
 
 
 bool WebRtcCake::send (std::string const& id, std::vector<uint8_t> const& data) {
-  //TODO
-  return send(data);
+  auto client_info = _findClientInfo(id);
+  if (client_info == nullptr) {
+    cout << "[patty_cake Error] cannot find client_info --- id: " << id << endl;
+    return false;
+  }
+
+  if (client_info->is_alive() == false) {
+    cout << "[patty_cake Error] client_info is not alive --- id: " << id << endl;
+    return false;
+  }
+
+  auto connection = ((WebRtcClientInfo*)client_info.get())->connection;
+  return __send(connection, data);
 }
 
 
@@ -167,50 +115,147 @@ void WebRtcCake::poll () {
 }
 
 
-void WebRtcCake::_createPeerConnection (
-    webrtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> factory,
-    OnStateChangeFunc on_state_change_func,
-    OnMessageFunc on_message_func
+
+
+WebRtcConnection::WebRtcConnection (
+    std::string const& id,
+    WebRtcCake* cake,
+    Type type,
+    PattyCake::OnMessageFunc on_message_func,
+    PattyCake::OnStateChangeFunc on_state_change_func,
+    PattyCake::OnLocalSdpFunc on_local_sdp_func,
+    PattyCake::OnLocalIceFunc on_local_ice_func
+)
+:id_(id),
+ cake_(cake),
+ type_(type)
+{
+  rtc::Configuration config;
+  config.iceServers.emplace_back("stun:stun.l.google.com:19302");
+
+  peer_connection_ = std::make_shared<rtc::PeerConnection>(config);
+
+  peer_connection_->onLocalDescription(
+      [on_local_sdp_func](rtc::Description desc) {
+        if (on_local_sdp_func != nullptr)
+          on_local_sdp_func(std::string(desc));
+      }
+  );
+
+  peer_connection_->onLocalCandidate(
+      [on_local_ice_func](rtc::Candidate cand) {
+        if (on_local_ice_func != nullptr)
+            on_local_ice_func(cand.candidate());
+      }
+  );
+
+  peer_connection_->onDataChannel(
+      [this, on_message_func, on_state_change_func](std::shared_ptr<rtc::DataChannel> dc) {
+        _setupDataChannel(dc, on_message_func, on_state_change_func);
+      }
+  );
+
+}
+
+
+WebRtcConnection::~WebRtcConnection () {
+  disconnect();
+}
+
+
+void WebRtcConnection::disconnect () {
+  data_channel_    = nullptr;
+  peer_connection_ = nullptr;
+}
+
+
+void WebRtcConnection::createDataChannel (
+    std::string const&           name,
+    bool                         ordered,
+    int                          max_retransmits,
+    PattyCake::OnMessageFunc     on_message_func,
+    PattyCake::OnStateChangeFunc on_state_change_func
 ) {
-  peer_connection_observer_ =
-      make_shared<PeerConnectionObserver_>(
-        this,
-        [this, on_state_change_func, on_message_func]
-            (webrtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
-              data_channel_ = channel;
 
-              data_channel_observer_ =
-                  make_shared<DataChannelObserver_>(
-                    data_channel_,
-                    on_state_change_func,
-                    on_message_func
-                  );
-            }
-      );
+  rtc::DataChannelInit init;
+  init.reliability.unordered      = !ordered;
+  init.reliability.maxRetransmits = max_retransmits;
 
-  webrtc::PeerConnectionInterface::RTCConfiguration config;
-  webrtc::PeerConnectionDependencies deps(peer_connection_observer_.get());
-  auto result = factory->CreatePeerConnectionOrError(config, std::move(deps));
-  if (result.ok() == false) {
-    cout << "[patty_cake Error] cannot create peer_connection" << endl;
-    return;
+  auto dc = peer_connection_->createDataChannel(name, init);
+  _setupDataChannel(dc, on_message_func, on_state_change_func);
+}
+
+
+void WebRtcConnection::receiveIceSdp (std::string const& sdp) {
+  peer_connection_->addRemoteCandidate(rtc::Candidate(sdp));
+}
+
+
+void WebRtcConnection::receiveSdp (std::string const& sdp) {
+
+  switch (type_) {
+    case Type::CALLER:
+      peer_connection_->setRemoteDescription({sdp, "answer"});
+      break;
+
+    case Type::CALLEE:
+      peer_connection_->setRemoteDescription({sdp, "offer"});
+      peer_connection_->setLocalDescription();
+      break;
+
+    default:
+      cout << "[patty_cake Error] unhandled WebRtcConnection::Type --- " << (uint32_t)type_ << endl;
+      break;
   }
-
-  peer_connection_ = result.MoveValue();
 }
 
 
-void WebRtcCake::OnDataChannel (rtc::scoped_refptr<webrtc::DataChannelInterface> channel) {
-  data_channel_ = channel;
-  data_channel_->RegisterObserver(this);
+void WebRtcConnection::_setupDataChannel (
+    std::shared_ptr<rtc::DataChannel> const& dc,
+    PattyCake::OnMessageFunc     on_message_func,
+    PattyCake::OnStateChangeFunc on_state_change_func
+) {
+  data_channel_ = dc;
+
+  data_channel_->onOpen([this, on_state_change_func]() { on_state_change_func(cake_, PattyCake::State::CONNECTED); });
+
+  data_channel_->onClosed([this, on_state_change_func]() { on_state_change_func(cake_, PattyCake::State::DISCONNECTED); });
+
+  data_channel_->onMessage(
+      [this, on_message_func](rtc::message_variant msg) {
+        if (std::holds_alternative<rtc::binary>(msg)) {
+          const auto& data = std::get<rtc::binary>(msg);
+
+          PattyCakePiece piece;
+          piece.sender_id = id_;
+          piece.data.resize(data.size());
+          memcpy(piece.data.data(), data.data(), data.size());
+
+          on_message_func(cake_, piece);
+        }
+      }
+  );
 }
 
 
-void WebRtcCake::OnMessage (const webrtc::DataBuffer& buffer) {
-  auto vec = std::vector<uint8_t>(buffer.data.data<uint8_t>(), buffer.data.data<uint8_t>() + buffer.data.size());
-  if (on_recv) on_recv("webrtc", vec);
+
+
+WebRtcClientInfo::WebRtcClientInfo (
+    std::string const& id,
+    std::shared_ptr<WebRtcConnection> connection
+)
+:super(id),
+ connection(connection)
+{
 }
 
+
+bool WebRtcClientInfo::is_alive () const {
+  return
+      connection != nullptr
+      && connection->cake() != nullptr
+      && connection->cake()->state() == PattyCake::State::CONNECTED;
+}
 
 
 } // namespace patty_cake

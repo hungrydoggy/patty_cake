@@ -34,15 +34,21 @@ public: // inner types
 
   using OnMessageFunc = std::function<void(PattyCake* cake, PattyCakePiece const& piece)>;
   using OnStateChangeFunc = std::function<void(PattyCake* cake, State state)>;
+  using OnLocalSdpFunc = std::function<void(std::string)>;
+  using OnLocalIceFunc = std::function<void(std::string)>;
 
   struct ConnectConfig {
     std::string       name;
     Type              type;
-    std::string       url             = "";
-    bool              ordered         = true;  // WebRTC
-    int               max_retransmits = -1;    // WebRTC. -1 == ∞
+    std::string       url;
     OnMessageFunc     on_message_func;
     OnStateChangeFunc on_state_change_func;
+
+    // WebRTC
+    bool           ordered         = true;
+    int            max_retransmits = -1;    // -1 == ∞
+    OnLocalSdpFunc on_local_sdp_func;
+    OnLocalIceFunc on_local_ice_func;
   };
 
   struct ListenConfig {
@@ -52,6 +58,10 @@ public: // inner types
     int               port = 9991;
     OnMessageFunc     on_message_func;
     OnStateChangeFunc on_state_change_func;
+
+    // WebRTC
+    OnLocalSdpFunc on_local_sdp_func;
+    OnLocalIceFunc on_local_ice_func;
   };
 
 
