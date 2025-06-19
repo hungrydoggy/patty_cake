@@ -36,6 +36,7 @@ public: // inner types
   using OnStateChangeFunc = std::function<void(PattyCake* cake, State state)>;
 
   struct ConnectConfig {
+    std::string       name;
     Type              type;
     std::string       url             = "";
     bool              ordered         = true;  // WebRTC
@@ -45,6 +46,7 @@ public: // inner types
   };
 
   struct ListenConfig {
+    std::string       name;
     Type              type;
     std::string       host = "0.0.0.0";
     int               port = 9991;

@@ -121,7 +121,7 @@ WebSocketCake::WebSocketCake (ListenConfig const& cnf) {
 
   auto res = server_->listen();
   if (res.first == false) {
-    cout << "[patty_cake error] cannot listen" << endl;
+    cout << "[patty_cake Error] cannot listen" << endl;
     state(State::FAILED);
     return;
   }

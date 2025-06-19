@@ -17,8 +17,9 @@ add_global_arguments('-D_THREAD_SAFE', language : 'cpp')
 
 ## inc_dirs
 inc_dirs = [
-  include_directories('external/webrtc/src'),
-  include_directories('external/webrtc/src/out/datachannelonly/gen'),
+  include_directories('./external/webrtc/src'),
+  include_directories('./external/webrtc/src/out/datachannelonly/gen'),
+  include_directories('./external/webrtc/src/third_party/abseil-cpp'),
 ]
 if build_sys == 'windows'
   inc_dirs += [
