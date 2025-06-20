@@ -14,8 +14,8 @@
 namespace patty_cake {
 
 
-class WebRtcClientInfo;
-class WebRtcConnection;
+struct WebRtcClientInfo;
+class  WebRtcConnection;
 
 
 class WebRtcCake : public PattyCake {
@@ -80,8 +80,8 @@ public: // getter/setter
 
 public: // methods
   WebRtcConnection (
-      std::string const& id,
       WebRtcCake* cake,
+      std::string const& id,
       Type type,
       PattyCake::OnMessageFunc on_message_func,
       PattyCake::OnStateChangeFunc on_state_change_func,
@@ -106,8 +106,8 @@ public: // methods
 
 
 private: // vars
-  std::string id_;
   WebRtcCake* cake_;
+  std::string id_;
   Type type_;
 
   std::shared_ptr<rtc::PeerConnection> peer_connection_;

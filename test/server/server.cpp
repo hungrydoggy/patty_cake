@@ -1,6 +1,7 @@
 #include "server.h"
 
 #include <iostream>
+#include <unordered_map>
 
 #include "../../src/cakes/web_rtc_cake.h"
 #include "../../src/cakes/web_socket_cake.h"
@@ -15,6 +16,7 @@ using std::endl;
 
 
 static void __onWsMessage (
+    std::unordered_map<std::string, std::string>& rtcid_wsid_map,
     WebSocketCake* ws_cake,
     WebRtcCake* rtc_cake,
     PattyCake::ListenConfig const& rtc_listen_cnf,
@@ -27,9 +29,13 @@ static void __onWsMessage (
       packet::SendWebRtcSdp p;
       p.readFrom(&slicer);
 
+      cout << "# SEND_WEB_RPC_SDP" << endl << p.sdp << endl << endl;
+
       auto client_info = rtc_cake->findClientInfo(p.client_id);
       if (client_info == nullptr)
         client_info = rtc_cake->addListenConnection(rtc_listen_cnf);
+
+      rtcid_wsid_map[client_info->id] = piece.sender_id;
 
       ((WebRtcClientInfo*)client_info.get())->connection->receiveSdp(p.sdp);
       break;
@@ -38,6 +44,8 @@ static void __onWsMessage (
     case packet::PacketType::SEND_WEB_RPC_ICE: {
       packet::SendWebRtcIce p;
       p.readFrom(&slicer);
+
+      cout << "# SEND_WEB_RPC_ICE" << endl << p.ice << endl << endl;
 
       auto client_info = rtc_cake->findClientInfo(p.client_id);
       if (client_info == nullptr)
@@ -86,6 +94,8 @@ int main (int argc, char** argv) {
   std::shared_ptr<PattyCake> ws_cake;
   std::shared_ptr<PattyCake> rtc_cake;
 
+  std::unordered_map<std::string, std::string> rtcid_wsid_map;
+
   // webrtc listen config
   PattyCake::ListenConfig rtc_listen_cnf =
       {
@@ -97,7 +107,7 @@ int main (int argc, char** argv) {
             },
 
         .on_local_sdp_func =
-            [&ws_cake](WebRtcConnection* conn, std::string const& sdp) {
+            [&ws_cake, &rtcid_wsid_map](WebRtcConnection* conn, std::string const& sdp) {
               PattyCakePieceMaker piece;
 
               packet::SendWebRtcSdp p;
@@ -105,18 +115,26 @@ int main (int argc, char** argv) {
               p.sdp = sdp;
               p.writeTo(&piece);
 
-              ws_cake->send(piece.data());
+              if (rtcid_wsid_map.find(conn->id()) == rtcid_wsid_map.end())
+                return;
+
+              auto ws_id = rtcid_wsid_map[conn->id()];
+              ws_cake->send(ws_id, piece.data());
             },
 
         .on_local_ice_func =
-            [&ws_cake](WebRtcConnection* conn, std::string const& ice) {
+            [&ws_cake, &rtcid_wsid_map](WebRtcConnection* conn, std::string const& ice) {
               PattyCakePieceMaker piece;
 
               packet::SendWebRtcIce p;
               p.ice = ice;
               p.writeTo(&piece);
 
-              ws_cake->send(piece.data());
+              if (rtcid_wsid_map.find(conn->id()) == rtcid_wsid_map.end())
+                return;
+
+              auto ws_id = rtcid_wsid_map[conn->id()];
+              ws_cake->send(ws_id, piece.data());
             },
       };
 
@@ -127,8 +145,8 @@ int main (int argc, char** argv) {
         .type = PattyCake::Type::WEB_SOCKET,
         .host = "127.0.0.1",
         .on_message_func =
-            [&rtc_cake, &rtc_listen_cnf](PattyCake* cake, PattyCakePiece const& piece) {
-              __onWsMessage((WebSocketCake*)cake, (WebRtcCake*)rtc_cake.get(), rtc_listen_cnf, piece);
+            [&rtc_cake, &rtc_listen_cnf, &rtcid_wsid_map](PattyCake* cake, PattyCakePiece const& piece) {
+              __onWsMessage(rtcid_wsid_map, (WebSocketCake*)cake, (WebRtcCake*)rtc_cake.get(), rtc_listen_cnf, piece);
 
               //// broadcast echo
               //for (auto& itr : cake->client_info_map()) {
@@ -139,9 +157,6 @@ int main (int argc, char** argv) {
       }
   );
 
-  while (ws_cake->state() == PattyCake::State::LISTENING) {
-  }
-
 
   // listen webrtc
   rtc_cake = PattyCake::listen(
@@ -149,6 +164,10 @@ int main (int argc, char** argv) {
         .type = PattyCake::Type::WEB_RTC,
       }
   );
+
+
+  while (ws_cake->state() == PattyCake::State::LISTENING) {
+  }
 
   return 0;
 }

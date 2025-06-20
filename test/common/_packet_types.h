@@ -6,7 +6,7 @@ namespace packet {
 
 
 enum class PacketType {
-  SEND_WEB_RPC_SDP,
+  SEND_WEB_RPC_SDP = 1,
   SEND_WEB_RPC_ICE,
   BROADCAST_SIMPLE_STRING,
 };

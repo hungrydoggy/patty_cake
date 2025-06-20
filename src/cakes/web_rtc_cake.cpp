@@ -21,8 +21,8 @@ WebRtcCake::WebRtcCake (ConnectConfig const& cnf)
   // make peer_connection
   default_connection_ =
       std::make_shared<WebRtcConnection>(
-        "",
         this,
+        "",
         WebRtcConnection::Type::CALLER,
         cnf.on_message_func,
         cnf.on_state_change_func,
@@ -112,8 +112,8 @@ std::shared_ptr<WebRtcClientInfo> WebRtcCake::addListenConnection (ListenConfig 
   auto client_id = std::to_string(_issueClientId());
   auto connection =
       std::make_shared<WebRtcConnection>(
-        client_id,
         this,
+        client_id,
         WebRtcConnection::Type::CALLEE,
         cnf.on_message_func,
         cnf.on_state_change_func,
@@ -141,16 +141,16 @@ uint32_t WebRtcCake::_issueClientId () {
 
 
 WebRtcConnection::WebRtcConnection (
-    std::string const& id,
     WebRtcCake* cake,
+    std::string const& id,
     Type type,
     PattyCake::OnMessageFunc on_message_func,
     PattyCake::OnStateChangeFunc on_state_change_func,
     PattyCake::OnLocalSdpFunc on_local_sdp_func,
     PattyCake::OnLocalIceFunc on_local_ice_func
 )
-:id_(id),
- cake_(cake),
+:cake_(cake),
+ id_(id),
  type_(type)
 {
   rtc::Configuration config;
@@ -162,6 +162,8 @@ WebRtcConnection::WebRtcConnection (
       [on_local_sdp_func, conn=this](rtc::Description desc) {
         if (on_local_sdp_func != nullptr)
           on_local_sdp_func(conn, std::string(desc));
+
+        conn->peer_connection()->onLocalDescription(nullptr);
       }
   );
 
@@ -276,8 +278,8 @@ WebRtcClientInfo::WebRtcClientInfo (
 bool WebRtcClientInfo::is_alive () const {
   return
       connection != nullptr
-      && connection->cake() != nullptr
-      && connection->cake()->state() == PattyCake::State::CONNECTED;
+      && connection->data_channel() != nullptr
+      && connection->data_channel()->isOpen();
 }
 
 

@@ -22,6 +22,8 @@ static void __onWsMessage (WebSocketCake* ws_cake, WebRtcCake* rtc_cake, PattyCa
       packet::SendWebRtcSdp p;
       p.readFrom(&slicer);
 
+      cout << "# SEND_WEB_RPC_SDP" << endl << p.sdp << endl << endl;
+
       auto& conn = rtc_cake->default_connection();
       conn->id(p.client_id);
       conn->receiveSdp(p.sdp);
@@ -31,6 +33,8 @@ static void __onWsMessage (WebSocketCake* ws_cake, WebRtcCake* rtc_cake, PattyCa
     case packet::PacketType::SEND_WEB_RPC_ICE: {
       packet::SendWebRtcIce p;
       p.readFrom(&slicer);
+
+      cout << "# SEND_WEB_RPC_ICE" << endl << p.ice << endl << endl;
 
       auto& conn = rtc_cake->default_connection();
       conn->receiveIceSdp(p.ice);
@@ -125,6 +129,10 @@ int main (int argc, char** argv) {
   );
 
 
+  while (ws_cake->state() == PattyCake::State::DISCONNECTED) {
+  }
+
+
 
   /// Display a prompt
   cout << "> " << std::flush;
@@ -132,8 +140,7 @@ int main (int argc, char** argv) {
   std::string text;
   // Read text from the console and send messages in text mode.
   // Exit with Ctrl-D on Unix or Ctrl-Z on Windows.
-  while (ws_cake->state() != PattyCake::State::DISCONNECTED && std::getline(std::cin, text))
-  {
+  while (ws_cake->state() != PattyCake::State::DISCONNECTED && std::getline(std::cin, text)) {
     PattyCakePieceMaker piece;
 
     packet::BroadcastSimpleString p;

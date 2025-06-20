@@ -13,7 +13,7 @@ PacketType Packet::getType (uint8_t const* data) {
 
 
 bool Packet::writeTo (patty_cake::PattyCakePieceMaker * maker) {
-  maker->append(type());
+  maker->append((uint16_t)type());
 
   return _onWriteTo(maker);
 }
