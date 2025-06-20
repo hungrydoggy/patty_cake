@@ -14,7 +14,9 @@ using std::endl;
 
 
 
-WebRtcCake::WebRtcCake (ConnectConfig const& cnf) {
+WebRtcCake::WebRtcCake (ConnectConfig const& cnf)
+:next_client_id_(1)
+{
 
   // make peer_connection
   default_connection_ =
@@ -45,19 +47,9 @@ WebRtcCake::WebRtcCake (ConnectConfig const& cnf) {
 }
 
 
-WebRtcCake::WebRtcCake (ListenConfig const& cnf) {
-
-  // make peer_connection
-  default_connection_ =
-      std::make_shared<WebRtcConnection>(
-        "",
-        this,
-        WebRtcConnection::Type::CALLEE,
-        cnf.on_message_func,
-        cnf.on_state_change_func,
-        cnf.on_local_sdp_func,
-        cnf.on_local_ice_func
-      );
+WebRtcCake::WebRtcCake (ListenConfig const& cnf)
+:next_client_id_(1)
+{
 }
 
 
@@ -94,7 +86,7 @@ bool WebRtcCake::send (std::vector<uint8_t> const& data) {
 
 
 bool WebRtcCake::send (std::string const& id, std::vector<uint8_t> const& data) {
-  auto client_info = _findClientInfo(id);
+  auto client_info = findClientInfo(id);
   if (client_info == nullptr) {
     cout << "[patty_cake Error] cannot find client_info --- id: " << id << endl;
     return false;
@@ -112,6 +104,37 @@ bool WebRtcCake::send (std::string const& id, std::vector<uint8_t> const& data) 
 
 void WebRtcCake::poll () {
   // No-op for now
+}
+
+
+std::shared_ptr<WebRtcClientInfo> WebRtcCake::addListenConnection (ListenConfig const& cnf) {
+  // make peer_connection
+  auto client_id = std::to_string(_issueClientId());
+  auto connection =
+      std::make_shared<WebRtcConnection>(
+        client_id,
+        this,
+        WebRtcConnection::Type::CALLEE,
+        cnf.on_message_func,
+        cnf.on_state_change_func,
+        cnf.on_local_sdp_func,
+        cnf.on_local_ice_func
+      );
+
+
+  auto client_info =
+      std::make_shared<WebRtcClientInfo>(
+        client_id,
+        connection
+      );
+  _addClientInfo(client_info);
+
+  return client_info;
+}
+
+
+uint32_t WebRtcCake::_issueClientId () {
+  return next_client_id_.fetch_add(1);
 }
 
 
@@ -136,16 +159,16 @@ WebRtcConnection::WebRtcConnection (
   peer_connection_ = std::make_shared<rtc::PeerConnection>(config);
 
   peer_connection_->onLocalDescription(
-      [on_local_sdp_func](rtc::Description desc) {
+      [on_local_sdp_func, conn=this](rtc::Description desc) {
         if (on_local_sdp_func != nullptr)
-          on_local_sdp_func(std::string(desc));
+          on_local_sdp_func(conn, std::string(desc));
       }
   );
 
   peer_connection_->onLocalCandidate(
-      [on_local_ice_func](rtc::Candidate cand) {
+      [on_local_ice_func, conn=this](rtc::Candidate cand) {
         if (on_local_ice_func != nullptr)
-            on_local_ice_func(cand.candidate());
+          on_local_ice_func(conn, cand.candidate());
       }
   );
 

@@ -27,6 +27,11 @@ void PattyCakePieceSlicer::slice (std::string& str) {
 }
 
 
+void PattyCakePieceSlicer::clear () {
+  idx_ = 0;
+}
+
+
 
 
 

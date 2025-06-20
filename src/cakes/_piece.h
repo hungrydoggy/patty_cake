@@ -31,6 +31,8 @@ public: // methods
 
   void slice (std::string& str);
 
+  void clear ();
+
 
 private: // vars
   PattyCakePiece const* piece_;

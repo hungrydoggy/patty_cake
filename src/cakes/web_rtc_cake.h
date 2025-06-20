@@ -14,6 +14,7 @@
 namespace patty_cake {
 
 
+class WebRtcClientInfo;
 class WebRtcConnection;
 
 
@@ -26,6 +27,7 @@ public: // inner types
 
 public: // getter/setter
   Type type () const override;
+  std::shared_ptr<WebRtcConnection> const& default_connection () const { return default_connection_; }
 
 
 public: // methods
@@ -39,14 +41,19 @@ public: // methods
 
   void poll () override;
 
+  std::shared_ptr<WebRtcClientInfo> addListenConnection (ListenConfig const& cnf);
+
 
 private: // vars
   std::shared_ptr<WebRtcConnection> default_connection_;
+  std::atomic<uint32_t> next_client_id_;
 
 
 private:// methods
   WebRtcCake (ConnectConfig const& cnf);
   WebRtcCake (ListenConfig const& cnf);
+
+  uint32_t _issueClientId ();
 };
 
 
@@ -60,6 +67,7 @@ public: // inner types
 
 public: // getter/setter
   inline std::string const& id () const { return id_; }
+  inline void id (std::string const& v) { id_ = v; }
 
   inline WebRtcCake* cake () const { return cake_; }
 

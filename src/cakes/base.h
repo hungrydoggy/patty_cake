@@ -14,6 +14,7 @@ namespace patty_cake {
 
 struct PattyClientInfo;
 struct PattyCakePiece;
+class  WebRtcConnection;
 
 
 class PattyCake {
@@ -34,8 +35,8 @@ public: // inner types
 
   using OnMessageFunc = std::function<void(PattyCake* cake, PattyCakePiece const& piece)>;
   using OnStateChangeFunc = std::function<void(PattyCake* cake, State state)>;
-  using OnLocalSdpFunc = std::function<void(std::string)>;
-  using OnLocalIceFunc = std::function<void(std::string)>;
+  using OnLocalSdpFunc = std::function<void(WebRtcConnection*, std::string)>;
+  using OnLocalIceFunc = std::function<void(WebRtcConnection*, std::string)>;
 
   struct ConnectConfig {
     std::string       name;
@@ -93,6 +94,8 @@ public: // methods
 
   virtual void poll () = 0;
 
+  std::shared_ptr<PattyClientInfo> findClientInfo (std::string const& id) const;
+
 
 protected: // getter/setter
   void state (State v);
@@ -108,8 +111,6 @@ protected: // methods
   void _addClientInfo (std::shared_ptr<PattyClientInfo> const& info);
 
   void _removeClientInfo (std::string const& id);
-
-  std::shared_ptr<PattyClientInfo> _findClientInfo (std::string const& id) const;
 
 
 private: // vars

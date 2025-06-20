@@ -1,0 +1,18 @@
+#ifndef PATTY_CAKE_TEST_COMMON_PACKET_TYPES_H_
+#define PATTY_CAKE_TEST_COMMON_PACKET_TYPES_H_
+
+
+namespace packet {
+
+
+enum class PacketType {
+  SEND_WEB_RPC_SDP,
+  SEND_WEB_RPC_ICE,
+  BROADCAST_SIMPLE_STRING,
+};
+
+
+}
+
+
+#endif  // ifndef PATTY_CAKE_TEST_COMMON_PACKET_TYPES_H_

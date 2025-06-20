@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "./web_rtc_cake.h"
 #include "./web_socket_cake.h"
 
 
@@ -25,7 +26,9 @@ shared_ptr<PattyCake> PattyCake::connect (ConnectConfig const& cnf) {
       cake = shared_ptr<PattyCake>(new WebSocketCake(cnf));
       break;
 
-    //case Type::WEB_RTC:
+    case Type::WEB_RTC:
+      cake = shared_ptr<PattyCake>(new WebRtcCake(cnf));
+      break;
 
     default:
       cout << "[patty_cake error] unhandled Type --- " << (uint32_t)cnf.type << endl;
@@ -51,7 +54,9 @@ std::shared_ptr<PattyCake> PattyCake::listen (ListenConfig const& cnf) {
       cake = shared_ptr<PattyCake>(new WebSocketCake(cnf));
       break;
 
-    //case Type::WEB_RTC:
+    case Type::WEB_RTC:
+      cake = shared_ptr<PattyCake>(new WebRtcCake(cnf));
+      break;
 
     default:
       cout << "[patty_cake error] unhandled Type --- " << (uint32_t)cnf.type << endl;
@@ -72,6 +77,11 @@ PattyCake::PattyCake () {
 }
 
 
+std::shared_ptr<PattyClientInfo> PattyCake::findClientInfo (std::string const& id) const {
+  return (client_info_map_.find(id) != client_info_map_.end())? client_info_map_.at(id): nullptr;
+}
+
+
 void PattyCake::state (State v) {
   state_ = v;
 
@@ -87,11 +97,6 @@ void PattyCake::_addClientInfo (std::shared_ptr<PattyClientInfo> const& info) {
 
 void PattyCake::_removeClientInfo (std::string const& id) {
   client_info_map_.erase(id);
-}
-
-
-std::shared_ptr<PattyClientInfo> PattyCake::_findClientInfo (std::string const& id) const {
-  return (client_info_map_.find(id) != client_info_map_.end())? client_info_map_.at(id): nullptr;
 }
 
 

@@ -68,6 +68,7 @@ endif
 # test client
 srcs = run_command('python3', 'find_src.py', 'src').stdout().strip().split('\n')
 srcs += run_command('python3', 'find_src.py', 'test/client').stdout().strip().split('\n')
+srcs += run_command('python3', 'find_src.py', 'test/common').stdout().strip().split('\n')
 
 executable('client', srcs, dependencies : deps, include_directories : inc_dirs, link_args : link_args, cpp_args : cpp_args)
 
@@ -76,6 +77,7 @@ executable('client', srcs, dependencies : deps, include_directories : inc_dirs, 
 # test server
 srcs = run_command('python3', 'find_src.py', 'src').stdout().strip().split('\n')
 srcs += run_command('python3', 'find_src.py', 'test/server').stdout().strip().split('\n')
+srcs += run_command('python3', 'find_src.py', 'test/common').stdout().strip().split('\n')
 
 executable('server', srcs, dependencies : deps, include_directories : inc_dirs, link_args : link_args, cpp_args : cpp_args)
 

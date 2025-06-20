@@ -165,7 +165,7 @@ bool WebSocketCake::send (std::vector<uint8_t> const& data) {
 
 
 bool WebSocketCake::send (std::string const& id, std::vector<uint8_t> const& data) {
-  auto client_info = _findClientInfo(id);
+  auto client_info = findClientInfo(id);
   if (client_info == nullptr) {
     cout << "[patty_cake Error] cannot find client_info --- id: " << id << endl;
     return false;
