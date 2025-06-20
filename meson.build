@@ -65,6 +65,13 @@ endif
 ##### build ####
 
 #########################################################################
+# patty_cake
+srcs = run_command('python3', 'find_src.py', 'src').stdout().strip().split('\n')
+
+shared_library('patty_cake', srcs, dependencies : deps, include_directories : inc_dirs, link_args : link_args, cpp_args: cpp_args)
+
+
+#########################################################################
 # test client
 srcs = run_command('python3', 'find_src.py', 'src').stdout().strip().split('\n')
 srcs += run_command('python3', 'find_src.py', 'test/client').stdout().strip().split('\n')
