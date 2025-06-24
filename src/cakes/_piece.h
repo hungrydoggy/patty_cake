@@ -62,6 +62,8 @@ public: // methods
 
   void append (std::string const& input_data);
 
+  void append (uint8_t* buffer, size_t buffer_size);
+
   void clear ();
 
 

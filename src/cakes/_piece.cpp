@@ -78,4 +78,24 @@ void PattyCakePieceMaker::append (std::string const& input_data) {
 }
 
 
+void PattyCakePieceMaker::append (uint8_t* buffer, size_t buffer_size) {
+  // ready
+  auto idx = data_.size();
+
+
+  { // resize
+    auto sz = sizeof(size_t) + buffer_size;
+    data_.resize(idx + sz);
+  }
+
+
+  // append buffer_size
+  memcpy(&data_[idx], &buffer_size, sizeof(size_t));
+
+
+  // append buffer
+  memcpy(&data_[idx + sizeof(size_t)], buffer, buffer_size);
+}
+
+
 }
