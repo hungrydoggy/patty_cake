@@ -27,6 +27,17 @@ void PattyCakePieceSlicer::slice (std::string& str) {
 }
 
 
+void PattyCakePieceSlicer::slice (std::vector<uint8_t>& buffer) {
+  auto buffer_size = *slice<size_t>();
+
+  auto cur_idx = idx_;
+  idx_ += buffer_size;
+
+  buffer.resize(buffer_size);
+  std::memcpy(buffer.data(), &piece_->data[cur_idx], buffer_size);
+}
+
+
 void PattyCakePieceSlicer::clear () {
   idx_ = 0;
 }
@@ -68,12 +79,12 @@ void PattyCakePieceMaker::append (std::string const& input_data) {
 
 
   { // append size
-    memcpy(&data_[idx], &str_size, sizeof(size_t));
+    std::memcpy(&data_[idx], &str_size, sizeof(size_t));
   }
 
 
   // append string
-  memcpy(&data_[idx + sizeof(size_t)], input_data.data(), input_data.size());
+  std::memcpy(&data_[idx + sizeof(size_t)], input_data.data(), input_data.size());
   data_[data_.size()-1] = 0;
 }
 
@@ -90,11 +101,11 @@ void PattyCakePieceMaker::append (uint8_t* buffer, size_t buffer_size) {
 
 
   // append buffer_size
-  memcpy(&data_[idx], &buffer_size, sizeof(size_t));
+  std::memcpy(&data_[idx], &buffer_size, sizeof(size_t));
 
 
   // append buffer
-  memcpy(&data_[idx + sizeof(size_t)], buffer, buffer_size);
+  std::memcpy(&data_[idx + sizeof(size_t)], buffer, buffer_size);
 }
 
 

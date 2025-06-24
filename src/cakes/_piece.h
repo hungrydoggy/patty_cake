@@ -2,9 +2,9 @@
 #define PATTY_CAKE_CAKES_PIECE_H_
 
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
-#include <string.h>
 #include <vector>
 
 
@@ -31,6 +31,8 @@ public: // methods
 
   void slice (std::string& str);
 
+  void slice (std::vector<uint8_t>& buffer);
+
   void clear ();
 
 
@@ -53,7 +55,7 @@ public: // methods
     auto idx = data_.size();
     data_.resize(idx + sz);
 
-    memcpy(&data_[idx], &input_data, sz);
+    std::memcpy(&data_[idx], &input_data, sz);
   }
 
   void append (char const* input_data);
